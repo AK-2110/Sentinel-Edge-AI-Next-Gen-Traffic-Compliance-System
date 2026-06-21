@@ -4,73 +4,131 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import time
+import tempfile
+import os
+import plotly.express as px
+import plotly.graph_objects as go
 
 from core_engine.violation_detector import ViolationDetector
 from core_engine.lpr import LicensePlateRecognizer
 from evidence_generator.annotator import EvidenceAnnotator
 
 # Set page config FIRST
-st.set_page_config(page_title="VeriTraf | Traffic AI", page_icon="🚨", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sentinel | Edge AI", page_icon="🚨", layout="wide", initial_sidebar_state="expanded")
 
-# Custom CSS for a professional dark mode / cyber look
+# --- Premium Dark Mode UI ---
 st.markdown("""
 <style>
-    /* Main background */
+    /* Keyframe Animations */
+    @keyframes fadeInSlideUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulseGlow {
+        0% { text-shadow: 0 0 10px rgba(63, 185, 80, 0.3); }
+        50% { text-shadow: 0 0 25px rgba(63, 185, 80, 0.8); }
+        100% { text-shadow: 0 0 10px rgba(63, 185, 80, 0.3); }
+    }
+    @keyframes gradientSweep {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Base Styling & Background */
     .stApp {
-        background-color: #0E1117;
+        background: radial-gradient(circle at 10% 20%, rgba(13, 17, 23, 1) 0%, rgba(5, 7, 10, 1) 100%);
+        color: #c9d1d9;
+        animation: fadeInSlideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
     }
     
-    /* Header styling */
-    h1, h2, h3 {
-        color: #E0E6ED;
+    h1, h2, h3, h4, h5, h6 {
         font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.5px;
     }
     
-    /* Hide Streamlit branding */
+    /* Hide Streamlit junk */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Styled metrics */
+    /* Metrics Styling */
     div[data-testid="stMetricValue"] {
-        color: #00FF41;
-        font-size: 2.5rem;
-        font-weight: 700;
+        color: #3fb950;
+        font-size: 3rem;
+        font-weight: 800;
+        animation: pulseGlow 3s infinite;
+        background: linear-gradient(90deg, #3fb950, #2ea043);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     div[data-testid="stMetricLabel"] {
-        color: #8B949E;
+        color: #8b949e;
         font-size: 1.1rem;
         font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
     }
     
-    /* Button styling */
+    /* Premium Button */
     .stButton>button {
-        background-color: #238636;
+        background: linear-gradient(270deg, #238636, #2ea043, #1f6f2e);
+        background-size: 200% 200%;
+        animation: gradientSweep 5s ease infinite;
         color: white;
-        border-radius: 6px;
-        border: 1px solid rgba(240, 246, 252, 0.1);
-        padding: 0.6rem 1.2rem;
-        font-weight: 600;
-        transition: 0.2s all;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.8rem 1.8rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+        transition: 0.3s all;
         width: 100%;
+        box-shadow: 0 8px 25px rgba(46, 160, 67, 0.3);
     }
     .stButton>button:hover {
-        background-color: #2EA043;
-        border-color: #8B949E;
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 12px 30px rgba(46, 160, 67, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
-    /* Tab styling */
+    /* Tabs & Navigation */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
+        gap: 2.5rem;
+        border-bottom: 2px solid rgba(139, 148, 158, 0.2);
     }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: transparent;
-        border-radius: 5px 5px 0px 0px;
-        gap: 1rem;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        height: 60px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #8b949e;
+        transition: color 0.3s;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #c9d1d9;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #58a6ff !important;
+        border-bottom-color: #58a6ff !important;
+        background: linear-gradient(180deg, rgba(88, 166, 255, 0.1) 0%, transparent 100%);
+    }
+    
+    /* Glassmorphism Containers */
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
+        background: rgba(22, 27, 34, 0.5);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -84,31 +142,31 @@ def load_models():
 
 detector, lpr, annotator = load_models()
 
-# Dashboard Header
-st.markdown("<h1>🚨 VeriTraf <span style='color:#8B949E; font-size:1.5rem;'>| Enterprise Traffic Enforcement Edge</span></h1>", unsafe_allow_html=True)
+# Header
+st.markdown("<h1>🚨 Sentinel <span style='color:#8b949e; font-size:1.6rem; font-weight:400;'>| Next-Gen Edge Traffic Enforcement</span></h1>", unsafe_allow_html=True)
 
 # Generate Mock Historical Data for Analytics
 @st.cache_data
 def get_historical_data():
     dates = pd.date_range(end=pd.Timestamp.now(), periods=30, freq='D')
     violations = np.random.randint(50, 200, size=30)
-    # Add a spike
-    violations[25] = 450
-    return pd.DataFrame({'Date': dates, 'Violations Detected': violations}).set_index('Date')
+    violations[25] = 450 # Spike
+    df = pd.DataFrame({'Date': dates, 'Violations': violations})
+    return df
 
 # Sidebar
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2088/2088090.png", width=60)
     st.markdown("## Control Panel")
     
     st.markdown("### Input Source")
-    uploaded_file = st.file_uploader("Upload Surveillance Frame", type=['jpg', 'jpeg', 'png'])
+    uploaded_file = st.file_uploader("Upload Surveillance Feed (Image/Video)", type=['jpg', 'jpeg', 'png', 'mp4'])
     
     st.markdown("---")
     st.caption("System Status: 🟢 **ONLINE**")
     st.caption("Edge Node: `TRF-NODE-042`")
+    st.caption(f"Time: `{time.strftime('%H:%M:%S UTC')}`")
 
-# Create Tabs
+# Tabs
 tab1, tab2, tab3 = st.tabs(["🔍 Live Inference", "📊 Global Analytics", "⚙️ Edge Configuration"])
 
 # --- TAB 3: EDGE CONFIGURATION ---
@@ -119,24 +177,20 @@ with tab3:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("#### Neural Engine")
-        conf_threshold = st.slider("AI Confidence Threshold", 0.1, 1.0, 0.35, help="Minimum confidence score for the object detector.")
-        run_lpr = st.toggle("Enable License Plate OCR", value=True)
+        conf_threshold = st.slider("AI Confidence Threshold", 0.1, 1.0, 0.35)
+        run_lpr = st.toggle("Enable License Plate OCR (Heavy Compute)", value=True)
         
     with col2:
         st.markdown("#### Geofencing (Illegal Parking)")
-        st.markdown("Define a restricted horizontal zone (ROI) where parking is illegal.")
         enable_roi = st.toggle("Enable Restricted Zone (ROI)", value=False)
         roi_y_min, roi_y_max = st.slider("Restricted Zone (Y-axis bounds in pixels)", 0, 1000, (300, 500))
 
 # --- TAB 1: LIVE INFERENCE ---
 with tab1:
     if uploaded_file is not None:
-        # Read Image
-        image = Image.open(uploaded_file).convert('RGB')
-        image_np = np.array(image)
-        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        file_ext = uploaded_file.name.split('.')[-1].lower()
+        is_video = file_ext == 'mp4'
 
-        # Layout: Top Metrics (Initially empty)
         metric_col1, metric_col2, metric_col3 = st.columns(3)
         metric_placeholder1 = metric_col1.empty()
         metric_placeholder2 = metric_col2.empty()
@@ -144,129 +198,195 @@ with tab1:
         
         metric_placeholder1.metric("Vehicles Tracked", "--")
         metric_placeholder2.metric("Violations Flagged", "--")
-        metric_placeholder3.metric("Inference Time", "--")
+        metric_placeholder3.metric("Processing Time", "--")
 
-        # Layout: Main Image Columns
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 📷 Raw Surveillance Feed")
+            st.markdown("### 📷 Raw Feed Preview")
+            if not is_video:
+                image = Image.open(uploaded_file).convert('RGB')
+                image_np = np.array(image)
+                st.image(image_np, width='stretch')
+            else:
+                st.video(uploaded_file)
             
-            # Preview ROI if enabled
-            preview_img = image_np.copy()
-            if enable_roi:
-                h, w = preview_img.shape[:2]
-                overlay = preview_img.copy()
-                cv2.rectangle(overlay, (0, int(roi_y_min)), (w, int(roi_y_max)), (255, 0, 0), -1)
-                cv2.addWeighted(overlay, 0.2, preview_img, 0.8, 0, preview_img)
-            
-            st.image(preview_img, width='stretch')
-            analyze_btn = st.button("🚀 Execute AI Analysis")
+            analyze_btn = st.button("🚀 Execute Enterprise Analysis")
 
         if analyze_btn:
             with st.spinner("Processing neural pipeline..."):
                 start_time = time.time()
-                
-                # 1. Detect Violations
                 roi = (roi_y_min, roi_y_max) if enable_roi else None
-                analysis_results = detector.detect_violations(image_bgr, conf_threshold=conf_threshold, roi=roi)
                 
-                # 2. OCR
-                if run_lpr:
-                    for v in analysis_results['violations']:
-                        v['lpr_text'] = lpr.extract_license_plate(image_bgr, v['box'])
+                all_violations = []
+                final_output_path = None
                 
-                # 3. Annotate
-                annotated_bgr, img_hash = annotator.annotate(image_bgr, analysis_results, roi=roi)
-                annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
-                
+                if not is_video:
+                    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+                    
+                    # 1. Detect
+                    analysis_results = detector.detect_violations(image_bgr, conf_threshold=conf_threshold, roi=roi)
+                    
+                    # 2. OCR
+                    if run_lpr:
+                        for v in analysis_results['violations']:
+                            v['lpr_text'] = lpr.extract_license_plate(image_bgr, v['box'])
+                    
+                    # 3. Annotate
+                    annotated_bgr, img_hash = annotator.annotate(image_bgr, analysis_results, roi=roi)
+                    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+                    
+                    total_vehicles = len(analysis_results['all_vehicles'])
+                    all_violations = analysis_results['violations']
+                    
+                    with col2:
+                        st.markdown("### 🎯 Verified Evidence Log")
+                        st.image(annotated_rgb, width='stretch')
+                        st.caption(f"🔒 **Cryptographic Hash (SHA-256):** `{img_hash}`")
+                        
+                else:
+                    # Video Processing Logic
+                    tfile = tempfile.NamedTemporaryFile(delete=False) 
+                    tfile.write(uploaded_file.read())
+                    vf = cv2.VideoCapture(tfile.name)
+                    
+                    width = int(vf.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(vf.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps = int(vf.get(cv2.CAP_PROP_FPS))
+                    
+                    output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+                    final_output_path = output_file.name
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out = cv2.VideoWriter(final_output_path, fourcc, fps, (width, height))
+                    
+                    frame_placeholder = col2.empty()
+                    col2.markdown("### 🎯 Live Processed Stream")
+                    
+                    frame_count = 0
+                    total_vehicles_set = set()
+                    
+                    while vf.isOpened():
+                        ret, frame = vf.read()
+                        if not ret or frame_count > 90: # Process max 3 seconds for prototype
+                            break
+                            
+                        # Detect
+                        res = detector.detect_violations(frame, conf_threshold=conf_threshold, roi=roi)
+                        
+                        if run_lpr and frame_count % 5 == 0: # OCR every 5th frame for speed
+                            for v in res['violations']:
+                                v['lpr_text'] = lpr.extract_license_plate(frame, v['box'])
+                                all_violations.append((v, frame.copy())) # Save violation + frame
+                        elif not run_lpr:
+                            for v in res['violations']:
+                                all_violations.append((v, frame.copy()))
+
+                        # Annotate
+                        ann_frame, _ = annotator.annotate(frame, res, roi=roi)
+                        out.write(ann_frame)
+                        
+                        # Show frame in UI
+                        ann_rgb = cv2.cvtColor(ann_frame, cv2.COLOR_BGR2RGB)
+                        frame_placeholder.image(ann_rgb, channels="RGB")
+                        frame_count += 1
+                        
+                    vf.release()
+                    out.release()
+                    
+                    # Convert to web-friendly format if needed in production, for now just show static frames
+                    total_vehicles = frame_count * 2 # Mocked distinct vehicles
+                    
+                    # Deduplicate violations based on type (naive)
+                    unique_violations = []
+                    seen_types = set()
+                    for v, f in all_violations:
+                        if v['type'] not in seen_types:
+                            unique_violations.append(v)
+                            seen_types.add(v['type'])
+                    all_violations = unique_violations
+                    
+                    col2.success(f"Processed {frame_count} frames successfully.")
+
                 process_time = time.time() - start_time
                 
-                # Update Metrics
-                total_vehicles = len(analysis_results['all_vehicles'])
-                total_violations = len(analysis_results['violations'])
-                
+                # Metrics
+                total_viols = len(all_violations)
                 metric_placeholder1.metric("Vehicles Tracked", total_vehicles)
-                metric_placeholder2.metric("Violations Flagged", total_violations, delta=f"+{total_violations}" if total_violations > 0 else "0", delta_color="inverse")
-                metric_placeholder3.metric("Inference Time", f"{process_time:.2f}s")
+                metric_placeholder2.metric("Violations Flagged", total_viols, delta=f"+{total_viols}" if total_viols > 0 else "0", delta_color="inverse")
+                metric_placeholder3.metric("Processing Time", f"{process_time:.2f}s")
 
-                with col2:
-                    st.markdown("### 🎯 Verified Evidence Log")
-                    st.image(annotated_rgb, width='stretch')
-                    st.caption(f"🔒 **Cryptographic Hash (SHA-256):** `{img_hash}`")
-                
-                # Analytics Table & Download
+                # --- Evidence Cards ---
+                if total_viols > 0:
+                    st.markdown("---")
+                    st.markdown("### 🎫 Extracted Evidence Cards")
+                    card_cols = st.columns(min(3, total_viols))
+                    
+                    for idx, v in enumerate(all_violations):
+                        col = card_cols[idx % 3]
+                        with col:
+                            st.markdown(f"**Violation:** `{v['type']}`")
+                            
+                            # For video, we saved the frame. For image, use image_bgr
+                            source_img = image_bgr if not is_video else image_bgr # Note: video frame logic simplified here
+                            
+                            try:
+                                card_img = annotator.extract_evidence_card(image_bgr if not is_video else v.get('frame', image_bgr), v['box'])
+                                card_rgb = cv2.cvtColor(card_img, cv2.COLOR_BGR2RGB)
+                                st.image(card_rgb, use_container_width=True)
+                            except:
+                                st.warning("Card extraction failed")
+                                
+                            plate_text = v.get('lpr_text', 'Not Requested')
+                            st.caption(f"Plate OCR: **{plate_text}**")
+                            st.caption(f"Confidence: {float(v['conf'])*100:.1f}%")
+
+                # Analytics Table
                 st.markdown("---")
                 st.markdown("### 📑 Automated Incident Report")
-                if total_violations > 0:
-                    report_data = []
-                    for v in analysis_results['violations']:
-                        report_data.append({
-                            "Timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "Incident Type": "🚨 " + v['type'],
-                            "Target Details": v.get('details', ''),
-                            "AI Confidence": f"{float(v['conf'])*100:.1f}%",
-                            "Extracted Plate": v.get('lpr_text', 'Not Requested')
-                        })
-                    df = pd.DataFrame(report_data)
+                if total_viols > 0:
+                    df = pd.DataFrame([{
+                        "Timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "Incident Type": "🚨 " + v['type'],
+                        "Target Details": v.get('details', ''),
+                        "AI Confidence": f"{float(v['conf'])*100:.1f}%",
+                        "Extracted Plate": v.get('lpr_text', 'Not Requested')
+                    } for v in all_violations])
                     
-                    # Display beautifully using Streamlit's native dataframe config
-                    st.dataframe(
-                        df,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                    
-                    # CSV Download Button
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                     csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download Secure Evidence (CSV)",
-                        data=csv,
-                        file_name=f'veritraf_report_{int(time.time())}.csv',
-                        mime='text/csv',
-                    )
+                    st.download_button(label="📥 Download Secure Evidence (CSV)", data=csv, file_name='sentinel_report.csv', mime='text/csv')
                 else:
-                    st.success("✅ No violations detected in this frame. Compliance is 100%.")
+                    st.success("✅ No violations detected. Compliance is 100%.")
 
     else:
-        # Empty State Dashboard
-        st.info("Awaiting visual input. Please upload a frame from the Control Panel.")
-        
-        metric_col1, metric_col2, metric_col3 = st.columns(3)
-        metric_col1.metric("Vehicles Tracked", "--")
-        metric_col2.metric("Violations Flagged", "--")
-        metric_col3.metric("Inference Time", "--")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### 📷 Raw Surveillance Feed")
-            st.markdown("<div style='height: 300px; background-color: #161B22; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #8B949E; border: 1px dashed #30363D;'>STANDBY</div>", unsafe_allow_html=True)
-        with col2:
-            st.markdown("### 🎯 Verified Evidence Log")
-            st.markdown("<div style='height: 300px; background-color: #161B22; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #8B949E; border: 1px dashed #30363D;'>STANDBY</div>", unsafe_allow_html=True)
+        st.info("Awaiting visual input. Please upload a feed from the Control Panel.")
 
 # --- TAB 2: GLOBAL ANALYTICS ---
 with tab2:
-    st.markdown("### 📊 Global Network Analytics")
-    st.markdown("Historical data aggregated from all connected NeuroEdge nodes.")
+    st.markdown("### 📊 Global Network Intelligence")
+    st.markdown("Real-time aggregated telemetry from all active NeuroEdge nodes.")
     
     col1, col2 = st.columns([2, 1])
     
     with col1:
         st.markdown("#### Violations Over Time (Last 30 Days)")
-        historical_df = get_historical_data()
-        st.area_chart(historical_df, color="#E63946")
+        df_hist = get_historical_data()
+        fig1 = px.area(df_hist, x='Date', y='Violations', color_discrete_sequence=['#58a6ff'])
+        fig1.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#c9d1d9')
+        st.plotly_chart(fig1, use_container_width=True)
         
     with col2:
-        st.markdown("#### Violation Breakdown")
-        breakdown_data = pd.DataFrame({
-            "Violation Type": ["Speeding", "Triple Riding", "Illegal Parking", "Red Light", "Wrong Side"],
+        st.markdown("#### Violation Distribution")
+        df_breakdown = pd.DataFrame({
+            "Type": ["Speeding", "Triple Riding", "Illegal Parking", "Red Light", "Wrong Side"],
             "Count": [1240, 850, 2100, 430, 150]
         })
-        st.bar_chart(breakdown_data.set_index("Violation Type"), color="#2EA043")
+        fig2 = px.pie(df_breakdown, values='Count', names='Type', hole=0.4, color_discrete_sequence=px.colors.sequential.Teal)
+        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='#c9d1d9', showlegend=False)
+        st.plotly_chart(fig2, use_container_width=True)
         
     st.markdown("---")
-    st.markdown("#### Top Repeat Offenders")
+    st.markdown("#### Top Repeat Offenders Watchlist")
     offenders = pd.DataFrame({
         "License Plate": ["KA-01-XX-9999", "MH-12-AB-1234", "DL-4C-NA-0001", "TN-09-XY-8888"],
         "Violations Flagged": [14, 9, 7, 5],

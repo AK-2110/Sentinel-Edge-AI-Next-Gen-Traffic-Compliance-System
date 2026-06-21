@@ -1,11 +1,19 @@
 import cv2
 import numpy as np
+import random
 from ultralytics import YOLO
+from typing import Dict, List, Any
 
 class ViolationDetector:
-    def __init__(self, model_path='yolov8n.pt'):
-        # Load the YOLOv8 model
-        self.model = YOLO(model_path)
+    def __init__(self, model_path: str = 'yolov8n.pt'):
+        """
+        Initializes the YOLO model and defines target classes.
+        """
+        try:
+            self.model = YOLO(model_path)
+        except Exception as e:
+            print(f"Error loading YOLO model: {e}")
+            raise e
         
         # COCO Classes we care about
         self.PERSON_CLASS = 0
@@ -14,8 +22,16 @@ class ViolationDetector:
         self.BUS_CLASS = 5
         self.TRUCK_CLASS = 7
 
-    def detect_violations(self, image_np, conf_threshold=0.3, roi=None):
-        results = self.model(image_np, conf=conf_threshold)[0]
+    def detect_violations(self, image_np: np.ndarray, conf_threshold: float = 0.3, roi: tuple = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Detects vehicles and evaluates violations such as Triple Riding and Illegal Parking.
+        Adds mock Speeding detection for prototype demonstration.
+        """
+        try:
+            results = self.model(image_np, conf=conf_threshold)[0]
+        except Exception as e:
+            print(f"Inference error: {e}")
+            return {'violations': [], 'all_vehicles': [], 'all_persons': []}
         
         boxes = results.boxes.xyxy.cpu().numpy()
         classes = results.boxes.cls.cpu().numpy()
@@ -26,7 +42,7 @@ class ViolationDetector:
         other_vehicles = []
         
         for box, cls, conf in zip(boxes, classes, confidences):
-            item = {'box': box, 'conf': conf, 'cls': int(cls)}
+            item = {'box': box, 'conf': float(conf), 'cls': int(cls)}
             if cls == self.PERSON_CLASS:
                 persons.append(item)
             elif cls == self.MOTORCYCLE_CLASS:
@@ -36,7 +52,7 @@ class ViolationDetector:
 
         violations = []
         
-        # Check for Triple Riding
+        # 1. Check for Triple Riding
         for moto in motorcycles:
             moto_box = moto['box']
             riders_on_this_moto = 0
@@ -53,7 +69,7 @@ class ViolationDetector:
                     'details': f'{riders_on_this_moto} persons detected on one motorcycle'
                 })
         
-        # Check for Illegal Parking in ROI
+        # 2. Check for Illegal Parking in ROI
         if roi is not None:
             roi_y_min, roi_y_max = roi
             for vehicle in other_vehicles:
@@ -64,11 +80,23 @@ class ViolationDetector:
                 
                 if roi_y_min <= bottom_y <= roi_y_max:
                     violations.append({
-                        'type': 'Illegal Parking / Zone Violation',
+                        'type': 'Illegal Parking / Zone',
                         'box': box,
                         'conf': vehicle['conf'],
                         'details': 'Vehicle detected inside restricted zone'
                     })
+
+        # 3. MOCK Speed Radar for Demo Purposes
+        # In a real app, speed is derived from optical flow or radar integration.
+        for vehicle in other_vehicles:
+            if random.random() < 0.15: # 15% chance to simulate a speeding vehicle
+                simulated_speed = random.randint(85, 120)
+                violations.append({
+                    'type': 'Speeding',
+                    'box': vehicle['box'],
+                    'conf': vehicle['conf'],
+                    'details': f'Simulated radar detected {simulated_speed} km/h (Limit: 80 km/h)'
+                })
         
         return {
             'violations': violations,
@@ -76,9 +104,10 @@ class ViolationDetector:
             'all_persons': persons
         }
 
-    def _check_overlap(self, box1, box2):
-        # Calculate Intersection over Union (IoU) or simple overlap
-        # box is [x1, y1, x2, y2]
+    def _check_overlap(self, box1: list, box2: list) -> bool:
+        """
+        Checks if person box (box2) overlaps significantly with motorcycle box (box1).
+        """
         x1_inter = max(box1[0], box2[0])
         y1_inter = max(box1[1], box2[1])
         x2_inter = min(box1[2], box2[2])
@@ -86,9 +115,8 @@ class ViolationDetector:
         
         inter_area = max(0, x2_inter - x1_inter) * max(0, y2_inter - y1_inter)
         if inter_area > 0:
-            # Check if a significant portion of the person is inside the motorcycle box
             person_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-            # For robustness, if intersection is more than 30% of person's area
+            # If intersection is more than 30% of person's area, assume riding
             if person_area > 0 and (inter_area / person_area) > 0.3:
                 return True
         return False
