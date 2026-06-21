@@ -390,12 +390,22 @@ export default function App() {
              <div className="flex-1 bg-white/[0.02] border border-white/[0.05] rounded-3xl p-4 backdrop-blur-xl shadow-2xl flex flex-col gap-4 h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar relative">
                
                {!results && (
-                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-8 text-center">
+                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-8 text-center z-10">
                    <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
                      <ShieldCheck size={24} className="opacity-50" />
                    </div>
                    <p className="font-medium">Awaiting Telemetry</p>
                    <p className="text-sm mt-2 opacity-60">Violations detected on the live feed will automatically populate cryptographically hashed evidence cards here.</p>
+                 </div>
+               )}
+
+               {results && results.evidence_cards && results.evidence_cards.length === 0 && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center text-green-500/80 p-8 text-center z-10">
+                   <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+                     <ShieldCheck size={24} />
+                   </div>
+                   <p className="font-bold text-lg">All Clear</p>
+                   <p className="text-sm mt-2 opacity-80 font-medium">No traffic violations were detected in this frame.</p>
                  </div>
                )}
                
