@@ -1,10 +1,17 @@
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /app
+# Create a non-root user (Required for Hugging Face Spaces)
+RUN useradd -m -u 1000 user
+
+# Set environment variables for the user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    PORT=7860
+
+# Set working directory to the user's home folder
+WORKDIR $HOME/app
 
 # Install system dependencies
-# These are often required by some OpenCV or machine learning libraries
 RUN apt-get update && apt-get install -y \
     build-essential \
     libgl1 \
@@ -12,17 +19,22 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file first to leverage Docker cache
+# Copy requirements file first
 COPY requirements.txt .
 
 # Install Python dependencies
-# We use no-cache-dir to keep the image size small
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
 
-EXPOSE 8000
+# Change ownership of the files to the non-root user
+RUN chown -R user:user $HOME/app
 
-# Run the FastAPI application using uvicorn
-CMD uvicorn backend_api:app --host 0.0.0.0 --port ${PORT:-8000}
+# Switch to the non-root user
+USER user
+
+EXPOSE 7860
+
+# Run the FastAPI application on port 7860
+CMD ["uvicorn", "backend_api:app", "--host", "0.0.0.0", "--port", "7860"]
